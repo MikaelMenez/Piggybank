@@ -4,6 +4,32 @@ use axum::{
     http::StatusCode,
     response::IntoResponse,
 };
+pub async fn all_of_kinds(
+    State(pool): State<SqlitePool>,
+    Path(tipo): Path<String>,
+) -> Result<Json<Vec<Transactionjson>>, (StatusCode, String)> {
+    let transactions =
+        sqlx::query_as!(Transaction, "SELECT * FROM transactions WHERE tipo=?", tipo)
+            .fetch_all(&pool)
+            .await
+            .map_err(|e| {
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    format!("Erro ao buscar membros {}", e),
+                )
+            })?;
+
+    Ok(Json(
+        transactions
+            .iter()
+            .map(|x| Transactionjson {
+                id: x.id,
+                valor: x.valor as f64 / 100.0,
+                tipo: x.tipo.clone(),
+            })
+            .collect(),
+    ))
+}
 pub async fn create_table_transactions(pool: &SqlitePool) -> Result<(), sqlx::Error> {
     sqlx::query!(
         r#"
@@ -140,7 +166,7 @@ pub async fn index(State(pool): State<SqlitePool>) -> impl IntoResponse {
 
     "hello world".into_response()
 }
-pub async fn add_Transaction(
+pub async fn add_transaction(
     State(pool): State<SqlitePool>,
     Json(membro): Json<Transactionjson>,
 ) -> impl IntoResponse {
