@@ -1,168 +1,109 @@
-# Piggybank
-Esta API HTTP, construída com Axum e SQLite, permite criar, listar, atualizar e deletar transações financeiras simples.
-Cada transação possui um tipo (tipo) e um valor (valor), armazenado em centavos no banco, mas exposto em reais (ex.: 10.99).
-Modelo de dados
+Piggybank API
 
-Tabela transactions no SQLite:
+API HTTP construída com Rust + Axum + SQLite para gerenciamento completo de transações financeiras. Valores são armazenados em centavos no banco (1099 = R$ 10,99) e expostos em reais nas respostas JSON.
+Tabela transactions
 
-    id: INTEGER PRIMARY KEY AUTOINCREMENT
+text
+id              INTEGER PRIMARY KEY AUTOINCREMENT
+tipo            TEXT NOT NULL              (entrada, lazer, saida, supermercado...)
+valor           INTEGER NOT NULL           (centavos: 1099 = R$ 10,99)
+data            TEXT NOT NULL              (YYYY-MM-DD HH:MM:SS via datetime('now'))
 
-    tipo: TEXT NOT NULL
+Structs
 
-    valor: INTEGER NOT NULL (valor em centavos, ex.: R$ 10,99 → 1099)
+    CreateTransaction: tipo: String, valor: f64 (input JSON)
 
-Structs em Rust:
+    Transaction: id, tipo, data, valor: i64 (banco)
 
-    Transaction (interno / banco):
+    Transactionjson: id, tipo, data, valor: f64 (resposta JSON)
 
-        id: Option<i64>
-
-        tipo: String
-
-        valor: i64 (centavos)
-
-    Transactionjson (JSON da API):
-
-        id: Option<i64>
-
-        tipo: String
-
-        valor: f64 (reais, ex.: 10.99)
-
-Rotas
-GET /
-
-    Descrição: Inicializa a tabela transactions (se ainda não existir) e responde com uma mensagem simples.
-
-    Resposta:
-
-        200 OK com corpo: "hello world" em texto puro.
-
+Rotas da API
 POST /add_transaction
 
-    Descrição: Cria uma nova transação.
+Cria nova transação. Data é automática (datetime('now')).
 
-    Body (JSON - Transactionjson):
+bash
+curl -X POST http://localhost:3000/add_transaction \
+  -H "Content-Type: application/json" \
+  -d '{"tipo": "lazer", "valor": -23.57}'
 
-    json
-    {
-      "tipo": "string",
-      "valor": 10.99
-    }
-
-        id é opcional e ignorado na inserção.
-
-        valor é recebido em reais e convertido para centavos (valor * 100.0 → i64) antes de salvar.
-
-    Comportamento:
-
-        Garante a existência da tabela com create_table_transactions.
-
-        Insere: INSERT INTO transactions (tipo, valor) VALUES (?, ?).
-
-    Respostas:
-
-        201 CREATED em caso de sucesso.
-
-        500 INTERNAL_SERVER_ERROR com mensagem "Erro ao criar membro: {erro}" em caso de falha no banco.
-
+Status: 201 Created
 GET /transactions
 
-    Descrição: Lista todas as transações.
+Lista todas transações.
 
-    Comportamento:
+bash
+curl http://localhost:3000/transactions
 
-        Consulta: SELECT * FROM transactions com sqlx::query_as!(Transaction, ...).
+GET /transactions/by_tipo/{tipo}
 
-        Converte cada Transaction em Transactionjson, dividindo o valor por 100:
+Filtra por tipo (ex: "lazer", "entrada").
 
-            valor: x.valor as f64 / 100.0 (centavos → reais).
+bash
+curl http://localhost:3000/transactions/by_tipo/lazer
 
-    Resposta:
+GET /transactions/by_date/{mes}/{ano}
 
-        200 OK com JSON:
+Filtra por mês/ano (ex: /by_date/1/2026 → "2026-01").
 
-        json
-        [
-          {
-            "id": 1,
-            "tipo": "entrada",
-            "valor": 10.99
-          },
-          {
-            "id": 2,
-            "tipo": "saida",
-            "valor": 5.50
-          }
-        ]
-
-        Em caso de erro de banco:
-
-            500 INTERNAL_SERVER_ERROR com mensagem "Erro ao buscar membros {erro}".
+bash
+curl http://localhost:3000/transactions/by_date/1/2026
 
 PUT /modify_transaction/{id}
 
-    Descrição: Atualiza uma transação existente pelo id.
+Atualiza transação por ID.
 
-    Parâmetros:
-
-        Path: {id} (inteiro, ex.: /modify_transaction/1).
-
-    Body (JSON - Transactionjson):
-
-json
-{
-  "tipo": "string",
-  "valor": 10.99
-}
-
-Comportamento:
-
-    Garante a existência da tabela.
-
-    Atribui o id do path ao corpo: membro.id = Some(path).
-
-    Converte valor de reais para centavos (valor *= 100.0, depois as i64).
-
-    Executa:
-
-        sql
-        UPDATE transactions
-        SET tipo = ?, valor = ?
-        WHERE id = ?
-
-        com os campos tipo, valorint, id.
-
-    Respostas:
-
-        201 CREATED em caso de atualização bem-sucedida.
-
-        500 INTERNAL_SERVER_ERROR com mensagem "Erro ao criar membro: {erro}" em caso de erro.
+bash
+curl -X PUT http://localhost:3000/modify_transaction/1 \
+  -H "Content-Type: application/json" \
+  -d '{"tipo": "entrada", "valor": 150.00}'
 
 DELETE /delete_transaction/{id}
 
-    Descrição: Remove uma transação pelo id.
+Remove transação por ID.
 
-    Parâmetros:
+bash
+curl -X DELETE http://localhost:3000/delete_transaction/1
 
-        Path: {id} (ex.: /delete_transaction/1).
+GET /
 
-    Comportamento:
+Health check.
 
-        Garante a existência da tabela.
+bash
+curl http://localhost:3000/
 
-        Executa: DELETE FROM transactions WHERE id = ?.
+Resposta: "hello world"
+Status Codes
 
-    Respostas:
+    200 OK: Sucesso (GET)
 
-        201 CREATED em caso de remoção bem-sucedida (semântica de status simples mas funcional).
+    201 Created: Sucesso (POST/PUT/DELETE)
 
-        500 INTERNAL_SERVER_ERROR com mensagem "Erro ao criar membro: {erro}" em caso de falha.
+    422 Unprocessable Entity: JSON inválido
 
-Execução do servidor
+    500 Internal Server Error: Erro no banco
 
-    Endereço de escuta: 0.0.0.0:3000.
+Endereço
 
-    URL de acesso exibida no console: http://127.0.0.1:{porta}/ (por padrão, http://127.0.0.1:3000/).
+text
+http://127.0.0.1:3000/
 
-    Inicialização do pool SQLite: SqlitePool::connect("sqlite:app.db").
+Dados de Teste
+
+sql
+INSERT INTO transactions (tipo, valor, data) VALUES 
+('entrada', 15000, '2026-01-08 12:00:00'),
+('lazer', -2357, '2026-01-08 14:30:00'),
+('saida', -8000, '2025-12-15 10:30:00');
+
+Exemplo de Resposta JSON
+
+json
+[
+  {
+    "id": 1,
+    "tipo": "entrada", 
+    "valor": 150.00,
+    "data": "2026-01-08 12:00:00"
+  }
+]
