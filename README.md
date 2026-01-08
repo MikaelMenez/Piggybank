@@ -1,26 +1,24 @@
 Piggybank API
 
 API HTTP construída com Rust + Axum + SQLite para gerenciamento completo de transações financeiras. Valores são armazenados em centavos no banco (1099 = R$ 10,99) e expostos em reais nas respostas JSON.
-Tabela transactions
+📋 Tabela transactions
+Campo	Tipo	Descrição
+id	INTEGER PRIMARY KEY AUTOINCREMENT	ID único gerado automaticamente
+tipo	TEXT NOT NULL	Tipo da transação (entrada, lazer, saida, supermercado...)
+valor	INTEGER NOT NULL	Valor em centavos (1099 = R$ 10,99)
+data	TEXT NOT NULL	Data/hora (YYYY-MM-DD HH:MM:SS via datetime('now'))
+🏗️ Structs
 
-text
-id              INTEGER PRIMARY KEY AUTOINCREMENT
-tipo            TEXT NOT NULL              (entrada, lazer, saida, supermercado...)
-valor           INTEGER NOT NULL           (centavos: 1099 = R$ 10,99)
-data            TEXT NOT NULL              (YYYY-MM-DD HH:MM:SS via datetime('now'))
+    CreateTransaction (input JSON): tipo: String, valor: f64
 
-Structs
+    Transaction (banco): id, tipo, data, valor: i64
 
-    CreateTransaction: tipo: String, valor: f64 (input JSON)
+    Transactionjson (resposta JSON): id, tipo, data, valor: f64
 
-    Transaction: id, tipo, data, valor: i64 (banco)
-
-    Transactionjson: id, tipo, data, valor: f64 (resposta JSON)
-
-Rotas da API
+🚀 Rotas da API
 POST /add_transaction
 
-Cria nova transação. Data é automática (datetime('now')).
+Cria nova transação. Data automática.
 
 bash
 curl -X POST http://localhost:3000/add_transaction \
@@ -37,14 +35,14 @@ curl http://localhost:3000/transactions
 
 GET /transactions/by_tipo/{tipo}
 
-Filtra por tipo (ex: "lazer", "entrada").
+Filtra por tipo ("lazer", "entrada").
 
 bash
 curl http://localhost:3000/transactions/by_tipo/lazer
 
 GET /transactions/by_date/{mes}/{ano}
 
-Filtra por mês/ano (ex: /by_date/1/2026 → "2026-01").
+Filtra por mês/ano (/by_date/1/2026 → "2026-01").
 
 bash
 curl http://localhost:3000/transactions/by_date/1/2026
@@ -73,22 +71,18 @@ bash
 curl http://localhost:3000/
 
 Resposta: "hello world"
-Status Codes
-
-    200 OK: Sucesso (GET)
-
-    201 Created: Sucesso (POST/PUT/DELETE)
-
-    422 Unprocessable Entity: JSON inválido
-
-    500 Internal Server Error: Erro no banco
-
-Endereço
+📊 Status Codes
+Código	Descrição
+200 OK	Sucesso (GET)
+201 Created	Sucesso (POST/PUT/DELETE)
+422 Unprocessable Entity	JSON inválido
+500 Internal Server Error	Erro no banco
+🌐 Endereço
 
 text
 http://127.0.0.1:3000/
 
-Dados de Teste
+🧪 Dados de Teste
 
 sql
 INSERT INTO transactions (tipo, valor, data) VALUES 
@@ -96,14 +90,15 @@ INSERT INTO transactions (tipo, valor, data) VALUES
 ('lazer', -2357, '2026-01-08 14:30:00'),
 ('saida', -8000, '2025-12-15 10:30:00');
 
-Exemplo de Resposta JSON
+📋 Exemplo de Resposta JSON
 
 json
 [
   {
     "id": 1,
-    "tipo": "entrada", 
+    "tipo": "entrada",
     "valor": 150.00,
     "data": "2026-01-08 12:00:00"
   }
 ]
+
