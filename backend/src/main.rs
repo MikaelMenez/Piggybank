@@ -10,7 +10,14 @@ async fn main() {
         .route("/", get(piggy_bank::index))
         .route("/add_transaction", post(piggy_bank::add_transaction))
         .route("/transactions", get(piggy_bank::get_transactions))
-        .route("/transactions/{tipo}", get(piggy_bank::all_of_kinds))
+        .route(
+            "/transactions/by_tipo/{tipo}",
+            get(piggy_bank::all_of_kinds),
+        )
+        .route(
+            "/transactions/by_date/{mes}/{ano}",
+            get(piggy_bank::filter_by_date),
+        )
         .route(
             "/modify_transaction/{id}",
             put(piggy_bank::modify_transactions),
