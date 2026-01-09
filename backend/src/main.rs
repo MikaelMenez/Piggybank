@@ -7,7 +7,7 @@ use piggy_bank;
 async fn main() {
     let pool = sqlx::SqlitePool::connect("sqlite:app.db").await.unwrap();
     let app = Router::new()
-        .route("/", get(piggy_bank::index))
+        .route("/", get(piggy_bank::create_table_transactions))
         .route("/add_transaction", post(piggy_bank::add_transaction))
         .route("/transactions", get(piggy_bank::get_transactions))
         .route(
