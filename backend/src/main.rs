@@ -3,10 +3,18 @@ use axum::{
     routing::{delete, get, post, put},
 };
 use piggy_bank;
+use sqlx::SqlitePool;
+use sqlx::sqlite::SqliteConnectOptions;
 #[tokio::main]
 async fn main() {
-    let pool = sqlx::SqlitePool::connect("sqlite:app.db").await.unwrap();
-piggy_bank::create_table_transactions(&pool);
+    let pool = SqlitePool::connect_with(
+        SqliteConnectOptions::new()
+            .filename("app.db")
+            .create_if_missing(true),
+    )
+    .await
+    .unwrap();
+    piggy_bank::create_table_transactions(&pool);
     let app = Router::new()
         .route("/", get(piggy_bank::index))
         .route("/add_transaction", post(piggy_bank::add_transaction))
