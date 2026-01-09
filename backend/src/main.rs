@@ -14,7 +14,7 @@ async fn main() {
     )
     .await
     .unwrap();
-    piggy_bank::create_table_transactions(&pool);
+    piggy_bank::create_table_transactions(&pool).await.unwrap();
     let app = Router::new()
         .route("/", get(piggy_bank::index))
         .route("/add_transaction", post(piggy_bank::add_transaction))
