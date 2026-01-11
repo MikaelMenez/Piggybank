@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n        CREATE TABLE IF NOT EXISTS transactions (\n            id INTEGER PRIMARY KEY AUTOINCREMENT,\n            tipo TEXT NOT NULL,\n            valor INTEGER NOT NULL,\n            data TEXT NOT NULL\n            )\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": []
+  },
+  "hash": "af643b4cc2337eae002859f66a973ed12307fe86a095ff670024abbcde38923c"
+}

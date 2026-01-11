@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n           UPDATE transactions\n           SET tipo = ?, valor= ?\n           WHERE id = ?\n           ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "6c6a5cd55ff20950fbbeac83519b3d864d2e07dcc8faef2ce6d0aa905741fd67"
+}

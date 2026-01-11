@@ -1,0 +1,38 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT * FROM transactions WHERE strftime('%Y-%m', data) = ?;",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Integer"
+      },
+      {
+        "name": "tipo",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "valor",
+        "ordinal": 2,
+        "type_info": "Integer"
+      },
+      {
+        "name": "data",
+        "ordinal": 3,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "9c29573bc2e387b64602a8189a4773b0682b1572d65e84966dfb29b80c0bd579"
+}

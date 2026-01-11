@@ -5,6 +5,7 @@ use axum::{
 use piggy_bank;
 use sqlx::SqlitePool;
 use sqlx::sqlite::SqliteConnectOptions;
+use tower_http::cors::{Any, CorsLayer};
 #[tokio::main]
 async fn main() {
     let pool = SqlitePool::connect_with(
@@ -35,8 +36,9 @@ async fn main() {
             "/delete_transaction/{id}",
             delete(piggy_bank::del_transactions),
         )
+        .layer(CorsLayer::new().allow_origin(Any))
         .with_state(pool);
-    let addr = "0.0.0.0:3000";
+    let addr = "0.0.0.0:46000";
     let adress = addr.strip_prefix("0.0.0.0:").unwrap();
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
     println!("server is listening in address : http://127.0.0.1:{adress}/");
