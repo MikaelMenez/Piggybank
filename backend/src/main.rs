@@ -36,7 +36,12 @@ async fn main() {
             "/delete_transaction/{id}",
             delete(piggy_bank::del_transactions),
         )
-        .layer(CorsLayer::new().allow_origin(Any))
+        .layer(
+            CorsLayer::new()
+                .allow_origin(Any)
+                .allow_headers(Any)
+                .allow_methods(Any),
+        )
         .with_state(pool);
     let addr = "0.0.0.0:46000";
     let adress = addr.strip_prefix("0.0.0.0:").unwrap();
