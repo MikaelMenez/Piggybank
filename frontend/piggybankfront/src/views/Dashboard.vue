@@ -6,14 +6,16 @@ import Chart from 'chart.js/auto'
 const router = useRouter()
 const API_URL = "http://127.0.0.1:46000"
 
-// --- ESTADO (Variáveis) ---
+// --- ESTADO ---
 const nomeUsuario = ref('Visitante')
 const saldoTotal = ref(0)
 const listaGlobalTransacoes = ref([])
 const dataAtual = ref(new Date())
 
-// Modal e Formulário
-const modalAberto = ref(false)
+// Modais
+const modalAberto = ref(false) // Modal de Nova Transação
+const modalGraficoAberto = ref(false) // Modal do Gráfico (NOVO)
+
 const tipoPersonalizadoVisivel = ref(false)
 const form = ref({
   valor: '',
@@ -22,13 +24,13 @@ const form = ref({
 })
 
 // Filtros
-const filtroAtivo = ref('tudo') // 'tudo', 'entradas', 'saidas'
+const filtroAtivo = ref('tudo')
 
 // Gráfico
-const graficoCanvas = ref(null) // Referência pro elemento HTML
+const graficoCanvas = ref(null)
 let graficoInstance = null
 
-// --- COMPUTADOS (Cálculos automáticos) ---
+// --- COMPUTADOS ---
 const nomeMesAno = computed(() => {
   return dataAtual.value.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }).toUpperCase()
 })
@@ -37,17 +39,22 @@ const saldoFormatado = computed(() => {
   return saldoTotal.value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 })
 
-// Filtra a lista automaticamente quando muda o filtroAtivo ou a listaGlobal
+// A última transação sempre será a primeira na lista
 const transacoesFiltradas = computed(() => {
-  if (filtroAtivo.value === 'tudo') return listaGlobalTransacoes.value
-  if (filtroAtivo.value === 'entradas') return listaGlobalTransacoes.value.filter(t => t.valor > 0)
-  if (filtroAtivo.value === 'saídas') return listaGlobalTransacoes.value.filter(t => t.valor < 0)
-  return []
+  let lista = listaGlobalTransacoes.value
+
+  if (filtroAtivo.value === 'entradas') {
+    lista = lista.filter(t => t.valor > 0)
+  } else if (filtroAtivo.value === 'saídas') {
+    lista = lista.filter(t => t.valor < 0)
+  }
+
+  // AQUI: Transforma texto em data e ordena da mais nova pra mais velha
+  return [...lista].sort((a, b) => new Date(b.data) - new Date(a.data)) 
 })
 
 // --- MÉTODOS ---
 
-// 1. Inicialização
 onMounted(() => {
   const user = localStorage.getItem("userName")
   if (!user) {
@@ -58,7 +65,6 @@ onMounted(() => {
   }
 })
 
-// 2. Navegação de Data
 function mudarMes(delta) {
   const novaData = new Date(dataAtual.value)
   novaData.setMonth(novaData.getMonth() + delta)
@@ -66,13 +72,10 @@ function mudarMes(delta) {
   carregarTransacoes()
 }
 
-// 3. API - Carregar
 async function carregarTransacoes() {
   try {
     const mes = dataAtual.value.getMonth() + 1
     const ano = dataAtual.value.getFullYear()
-    
-    console.log(`Buscando: ${mes}/${ano}`)
     
     const res = await fetch(`${API_URL}/transactions/by_date/${mes}/${ano}`)
     
@@ -83,13 +86,13 @@ async function carregarTransacoes() {
     }
 
     calcularSaldo()
-    desenharGrafico()
+    // Nota: Não desenhamos o gráfico aqui automaticamente mais,
+    // pois o canvas pode estar escondido (modal fechado).
     
   } catch (error) {
     console.error("Erro API:", error)
     listaGlobalTransacoes.value = []
     calcularSaldo()
-    desenharGrafico() // Limpa o gráfico
   }
 }
 
@@ -97,7 +100,6 @@ function calcularSaldo() {
   saldoTotal.value = listaGlobalTransacoes.value.reduce((acc, item) => acc + item.valor, 0)
 }
 
-// 4. API - Salvar
 async function salvarTransacao() {
   let tipoFinal = form.value.tipo
   if (tipoFinal === 'outro') {
@@ -121,12 +123,10 @@ async function salvarTransacao() {
 
     if (res.ok) {
       modalAberto.value = false
-      // Limpa form
       form.value.valor = ''
       form.value.tipo = 'entrada'
       form.value.customTipo = ''
       tipoPersonalizadoVisivel.value = false
-      
       carregarTransacoes()
     } else {
       alert("Erro ao salvar")
@@ -136,10 +136,8 @@ async function salvarTransacao() {
   }
 }
 
-// 5. API - Excluir
 async function excluir(id) {
   if (!confirm("Excluir item?")) return
-  
   try {
     const res = await fetch(`${API_URL}/delete_transaction/${id}`, { method: 'DELETE' })
     if (res.ok) carregarTransacoes()
@@ -148,9 +146,16 @@ async function excluir(id) {
   }
 }
 
-// 6. Visual - Gráfico
+// --- LÓGICA DO GRÁFICO (Alterada) ---
+async function abrirGrafico() {
+    modalGraficoAberto.value = true;
+    // nextTick espera o Vue renderizar o HTML do modal para o <canvas> existir
+    await nextTick();
+    desenharGrafico();
+}
+
 function desenharGrafico() {
-  if (!graficoCanvas.value) return // Segurança
+  if (!graficoCanvas.value) return 
 
   const lista = listaGlobalTransacoes.value
   const entradas = lista.filter(t => t.valor > 0).reduce((acc, t) => acc + t.valor, 0)
@@ -158,8 +163,9 @@ function desenharGrafico() {
 
   if (graficoInstance) graficoInstance.destroy()
 
-  if (entradas === 0 && saidas === 0) return
-
+  // Se não tiver dados, podemos desenhar um gráfico vazio ou retornar
+  // Vou deixar desenhar para mostrar zerado
+  
   graficoInstance = new Chart(graficoCanvas.value, {
     type: 'doughnut',
     data: {
@@ -179,7 +185,6 @@ function desenharGrafico() {
   })
 }
 
-// 7. Utilitários
 function logout() {
   localStorage.removeItem("userName")
   router.push('/login')
@@ -189,7 +194,6 @@ function verificarTipoCustom() {
   tipoPersonalizadoVisivel.value = (form.value.tipo === 'outro')
 }
 
-// Formatadores visuais para o template
 const formatarData = (dataStr) => new Date(dataStr).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
 </script>
 
@@ -212,11 +216,11 @@ const formatarData = (dataStr) => new Date(dataStr).toLocaleDateString('pt-BR', 
         <section id="area-saldo">
             <p>Saldo Total</p>
             <h1>{{ saldoFormatado }}</h1>
-        </section>
 
-        <div class="grafico-container">
-            <canvas ref="graficoCanvas"></canvas>
-        </div>
+            <button class="btn-ver-grafico" @click="abrirGrafico">
+                📊 Ver Gráfico
+            </button>
+        </section>
 
         <div class="controles-topo">
             <div class="seletor-data">
@@ -282,18 +286,28 @@ const formatarData = (dataStr) => new Date(dataStr).toLocaleDateString('pt-BR', 
             </form>
         </div>
     </div>
+
+    <div id="modal-overlay" v-if="modalGraficoAberto" @click.self="modalGraficoAberto = false">
+        <div class="modal-box modal-grafico-box">
+            <div class="modal-header">
+                <h2>Resumo Mensal</h2>
+                <button class="btn-fechar-x" @click="modalGraficoAberto = false">✕</button>
+            </div>
+            
+            <div class="grafico-container-modal">
+                <canvas ref="graficoCanvas"></canvas>
+            </div>
+        </div>
+    </div>
+
   </div>
 </template>
 
 <style scoped>
-/* COPIE TODO O CSS DO SEU DASHBOARD.HTML E COLE AQUI */
-/* Vou colocar o básico essencial para garantir que funcione, mas o ideal é copiar o seu completo */
+/* (MANTIVE SEU CSS ANTIGO E ADICIONEI OS NOVOS ABAIXO) */
 
-/* --- CSS CORRIGIDO PARA O DASHBOARD --- */
-
-/* Garante que a tela toda tenha essa cor de fundo */
 .dashboard-body {
-    background-color: #11034b86; /* Cor do fundo */
+    background-color: #11034b86; 
     min-height: 100vh;
     width: 100%;
     font-family: Arial, sans-serif;
@@ -301,7 +315,6 @@ const formatarData = (dataStr) => new Date(dataStr).toLocaleDateString('pt-BR', 
     flex-direction: column;
 }
 
-/* O HEADER AGORA OCUPA 100% DA LARGURA */
 header {
     width: 100%;
     background-color: #d3d3d3;
@@ -314,9 +327,9 @@ header {
     align-items: center;
     justify-content: space-between;
     height: 56px;
-    padding: 0 20px; /* Espacinho nas laterais */
-    max-width: 1200px; /* Limite pra não ficar muito esticado em monitor gigante */
-    margin: 0 auto; /* Centraliza o conteúdo do header */
+    padding: 0 20px; 
+    max-width: 1200px;
+    margin: 0 auto; 
 }
 
 #logo {
@@ -346,16 +359,13 @@ header {
     box-shadow: 0 2px 5px rgba(0,0,0,0.2);
 }
 
-/* O CORPO DO DASHBOARD CONTINUA COM 600PX (ESTILO CELULAR) */
 .dashboard-container {
     width: 100%;
     max-width: 600px; 
-    margin: 20px auto; /* Centraliza no meio da tela */
+    margin: 20px auto; 
     padding: 0 20px;
     flex: 1;
 }
-
-/* --- RESTANTE DO SEU CSS (MANTIDO IGUAL) --- */
 
 #area-saldo {
     text-align: center;
@@ -368,15 +378,21 @@ header {
 }
 #area-saldo h1 { font-size: 42px; margin-top: 10px; }
 
-.grafico-container {
-    background-color: white;
-    padding: 20px;
-    margin-bottom: 25px;
+/* Estilo novo do Botão Ver Gráfico */
+.btn-ver-grafico {
+    margin-top: 15px;
+    background-color: rgba(255, 255, 255, 0.2);
+    border: 1px solid white;
+    color: rgb(0, 26, 255);
+    padding: 8px 16px;
     border-radius: 20px;
-    height: 250px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
+    cursor: pointer;
+    transition: 0.2s;
+    font-weight: bold;
+}
+.btn-ver-grafico:hover {
+    background-color: white;
+    color: #ff85d8;
 }
 
 .controles-topo {
@@ -468,6 +484,31 @@ header {
 .modal-box {
     background: white; padding: 25px; border-radius: 15px; width: 90%; max-width: 400px;
 }
+
+/* Estilos para o Modal do Gráfico */
+.modal-grafico-box {
+    max-width: 500px;
+    text-align: center;
+}
+.modal-header {
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center;
+    margin-bottom: 15px;
+}
+.btn-fechar-x {
+    background: none;
+    border: none;
+    font-size: 20px;
+    cursor: pointer;
+    color: #666;
+}
+.grafico-container-modal {
+    position: relative;
+    height: 300px;
+    width: 100%;
+}
+
 .campo { margin-bottom: 15px; display: flex; flex-direction: column; }
 .campo input, .campo select { padding: 10px; border: 1px solid #ddd; border-radius: 8px; }
 .botoes-modal { display: flex; gap: 10px; margin-top: 20px; }
