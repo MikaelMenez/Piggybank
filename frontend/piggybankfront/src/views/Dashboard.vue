@@ -50,7 +50,7 @@ const transacoesFiltradas = computed(() => {
   }
 
   // AQUI: Transforma texto em data e ordena da mais nova pra mais velha
-  return [...lista].sort((a, b) => new Date(b.data) - new Date(a.data)) 
+  return [...lista].sort((a, b) => new Date(b.data) - new Date(a.data))
 })
 
 // --- MÉTODOS ---
@@ -76,9 +76,9 @@ async function carregarTransacoes() {
   try {
     const mes = dataAtual.value.getMonth() + 1
     const ano = dataAtual.value.getFullYear()
-    
+
     const res = await fetch(`${API_URL}/transactions/by_date/${mes}/${ano}`)
-    
+
     if (res.ok) {
       listaGlobalTransacoes.value = await res.json()
     } else if (res.status === 404) {
@@ -88,7 +88,7 @@ async function carregarTransacoes() {
     calcularSaldo()
     // Nota: Não desenhamos o gráfico aqui automaticamente mais,
     // pois o canvas pode estar escondido (modal fechado).
-    
+
   } catch (error) {
     console.error("Erro API:", error)
     listaGlobalTransacoes.value = []
@@ -155,7 +155,7 @@ async function abrirGrafico() {
 }
 
 function desenharGrafico() {
-  if (!graficoCanvas.value) return 
+  if (!graficoCanvas.value) return
 
   const lista = listaGlobalTransacoes.value
   const entradas = lista.filter(t => t.valor > 0).reduce((acc, t) => acc + t.valor, 0)
@@ -165,7 +165,7 @@ function desenharGrafico() {
 
   // Se não tiver dados, podemos desenhar um gráfico vazio ou retornar
   // Vou deixar desenhar para mostrar zerado
-  
+
   graficoInstance = new Chart(graficoCanvas.value, {
     type: 'doughnut',
     data: {
@@ -245,7 +245,7 @@ const formatarData = (dataStr) => new Date(dataStr).toLocaleDateString('pt-BR', 
                     </div>
                     <div class="detalhes">
                         <strong class="titulo">{{ item.tipo.toUpperCase() }}</strong>
-                        <span class="data">{{ formatarData(item.data) }}</span>
+                        <span class="data">{{ " "+formatarData(item.data) }}</span>
                     </div>
                 </div>
                 <div class="info-direita">
@@ -293,7 +293,7 @@ const formatarData = (dataStr) => new Date(dataStr).toLocaleDateString('pt-BR', 
                 <h2>Resumo Mensal</h2>
                 <button class="btn-fechar-x" @click="modalGraficoAberto = false">✕</button>
             </div>
-            
+
             <div class="grafico-container-modal">
                 <canvas ref="graficoCanvas"></canvas>
             </div>
@@ -307,7 +307,7 @@ const formatarData = (dataStr) => new Date(dataStr).toLocaleDateString('pt-BR', 
 /* (MANTIVE SEU CSS ANTIGO E ADICIONEI OS NOVOS ABAIXO) */
 
 .dashboard-body {
-    background-color: #11034b86; 
+    background-color: #11034b86;
     min-height: 100vh;
     width: 100%;
     font-family: Arial, sans-serif;
@@ -327,9 +327,9 @@ header {
     align-items: center;
     justify-content: space-between;
     height: 56px;
-    padding: 0 20px; 
+    padding: 0 20px;
     max-width: 1200px;
-    margin: 0 auto; 
+    margin: 0 auto;
 }
 
 #logo {
@@ -343,7 +343,7 @@ header {
 #saudation {
     display: flex;
     align-items: center;
-    font-size: 18px; 
+    font-size: 18px;
     gap: 15px;
 }
 
@@ -361,8 +361,8 @@ header {
 
 .dashboard-container {
     width: 100%;
-    max-width: 600px; 
-    margin: 20px auto; 
+    max-width: 600px;
+    margin: 20px auto;
     padding: 0 20px;
     flex: 1;
 }
@@ -491,8 +491,8 @@ header {
     text-align: center;
 }
 .modal-header {
-    display: flex; 
-    justify-content: space-between; 
+    display: flex;
+    justify-content: space-between;
     align-items: center;
     margin-bottom: 15px;
 }
