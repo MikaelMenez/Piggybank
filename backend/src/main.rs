@@ -2,10 +2,11 @@ use axum::{
     Router,
     routing::{delete, get, post, put},
 };
+use http::HeaderValue;
 use piggy_bank;
 use sqlx::SqlitePool;
 use sqlx::sqlite::SqliteConnectOptions;
-use tower_http::cors::{Any, CorsLayer};
+use tower_http::cors::{AllowOrigin, Any, CorsLayer};
 #[tokio::main]
 async fn main() {
     let pool = SqlitePool::connect_with(
@@ -38,7 +39,11 @@ async fn main() {
         )
         .layer(
             CorsLayer::new()
-                .allow_origin(Any)
+                .allow_origin(AllowOrigin::predicate(|origin: &HeaderValue, _| {
+                    let origin_str = origin.to_str().unwrap_or("");
+                    origin_str.starts_with("http://127.0.0.1")
+                        || origin_str.starts_with("http://localhost")
+                }))
                 .allow_headers(Any)
                 .allow_methods(Any),
         )
