@@ -7,7 +7,7 @@ Cargo.lock
 *.sqlite
 *.sqlite3
 app.db
-
+.sqlx/
 # Ambiente
 .env
 .env.local
@@ -23,3 +23,8 @@ app.db
 *.log
 tmp/
 temp/
+
+
+# Added by cargo
+
+/target
