@@ -5,10 +5,22 @@ use axum::{
 use http::HeaderValue;
 use piggy_bank;
 use sqlx::SqlitePool;
+use sqlx::migrate::MigrateDatabase;
 use sqlx::sqlite::SqliteConnectOptions;
 use tower_http::cors::{AllowOrigin, Any, CorsLayer};
+use tower_http::services::{ServeDir, ServeFile};
 #[tokio::main]
 async fn main() {
+    let db_path = "app.db";
+
+    // Cria DB se não existir
+    if !sqlx::Sqlite::database_exists(db_path)
+        .await
+        .unwrap_or(false)
+    {
+        sqlx::Sqlite::create_database(db_path).await.unwrap();
+        println!("🆕 Banco criado: {}", db_path);
+    }
     let pool = SqlitePool::connect_with(
         SqliteConnectOptions::new()
             .filename("app.db")
@@ -16,9 +28,14 @@ async fn main() {
     )
     .await
     .unwrap();
+    sqlx::migrate!("./migrations") // Pasta migrations/
+        .run(&pool)
+        .await
+        .unwrap();
     piggy_bank::create_table_transactions(&pool).await.unwrap();
+    let fallbacks = ServeDir::new("./dist").fallback(ServeFile::new("./dist/index.html"));
     let app = Router::new()
-        .route("/", get(piggy_bank::index))
+        .fallback_service(fallbacks)
         .route("/add_transaction", post(piggy_bank::add_transaction))
         .route("/transactions", get(piggy_bank::get_transactions))
         .route(
