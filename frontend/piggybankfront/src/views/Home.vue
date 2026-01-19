@@ -26,10 +26,9 @@ import { RouterLink } from 'vue-router'
 </template>
 
 <style scoped>
-/* CSS Trazido do index.html */
 .home-body {
   font-family: Arial, Helvetica, sans-serif;
-  background-image: url('/images/porquinho.jpg'); /* Caminho ajustado para public */
+  background-image: url('/images/porquinho.jpg');
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;

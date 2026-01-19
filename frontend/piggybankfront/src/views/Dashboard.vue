@@ -6,7 +6,7 @@ import Chart from 'chart.js/auto'
 const router = useRouter()
 const API_URL = "http://127.0.0.1:46000"
 
-// --- ESTADO ---
+// ESTADO
 const nomeUsuario = ref('Visitante')
 const saldoTotal = ref(0)
 const listaGlobalTransacoes = ref([])
@@ -26,10 +26,10 @@ const form = ref({
 // Filtros
 const filtroAtivo = ref('tudo')
 
-// --- ESTADO DO GRÁFICO (NOVO) ---
+// ESTADO DO GRÁFICO 
 const graficoCanvas = ref(null)
 let graficoInstance = null
-const modoGrafico = ref('pizza') // 'pizza' ou 'linha'
+const modoGrafico = ref('pizza') // pizza ou linha
 const anoSelecionado = ref(new Date().getFullYear())
 
 // Gera os últimos 3 anos para o select
@@ -38,7 +38,7 @@ const anosDisponiveis = computed(() => {
   return [anoAtual, anoAtual - 1, anoAtual - 2]
 })
 
-// --- COMPUTADOS ---
+// COMPUTADOS
 const nomeMesAno = computed(() => {
   return dataAtual.value.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }).toUpperCase()
 })
@@ -57,12 +57,11 @@ const transacoesFiltradas = computed(() => {
     lista = lista.filter(t => t.valor < 0)
   }
 
-  // AQUI: Transforma texto em data e ordena da mais nova pra mais velha
+  // Transforma texto em data e ordena da mais nova pra mais velha
   return [...lista].sort((a, b) => new Date(b.data) - new Date(a.data))
 })
 
-// --- MÉTODOS ---
-
+// MÉTODOS
 onMounted(() => {
   const user = localStorage.getItem("userName")
   if (!user) {
@@ -152,8 +151,7 @@ async function excluir(id) {
   }
 }
 
-// --- LÓGICA DO GRÁFICO (Alterada/Expandida) ---
-
+// LÓGICA DO GRÁFICO
 async function abrirGrafico() {
     modalGraficoAberto.value = true;
     await nextTick();
@@ -200,7 +198,7 @@ function desenharGraficoPizza() {
   })
 }
 
-// Função auxiliar para pegar dados do ano todo (loopando a API existente)
+// Função auxiliar para pegar dados do ano todo (loopando a API)
 async function buscarDadosDoAno(ano) {
   const promises = []
   // Busca os 12 meses em paralelo
@@ -216,15 +214,15 @@ async function buscarDadosDoAno(ano) {
 }
 
 async function desenharGraficoLinha() {
-  // 1. Busca dados
+  // Busca dados
   const dadosAno = await buscarDadosDoAno(anoSelecionado.value)
   
-  // 2. Prepara Arrays (12 meses)
+  // Prepara Arrays (12 meses)
   const meses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
   const valoresEntrada = new Array(12).fill(0)
   const valoresSaida = new Array(12).fill(0)
 
-  // 3. Processa
+  // Processando isso
   dadosAno.forEach(t => {
     // Tenta ler a data da transação
     const dataT = new Date(t.data)
@@ -238,7 +236,7 @@ async function desenharGraficoLinha() {
     }
   })
 
-  // 4. Desenha Linha
+  // Desenha Linha
   graficoInstance = new Chart(graficoCanvas.value, {
     type: 'line',
     data: {

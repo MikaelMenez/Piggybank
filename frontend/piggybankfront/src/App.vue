@@ -7,14 +7,14 @@ import { RouterView } from 'vue-router'
 </template>
 
 <style>
-/* Reset Violento para garantir que nada fique centralizado à força */
+/* Reset */
 html, body, #app {
   width: 100%;
   min-height: 100vh;
   margin: 0;
   padding: 0;
   display: block !important; /* Remove o display: flex que centraliza */
-  background-color: #11034b86; /* Cor de fundo padrão */
+  background-color: #11034b86;
 }
 
 /* Garante que o conteúdo dentro do App também possa crescer */

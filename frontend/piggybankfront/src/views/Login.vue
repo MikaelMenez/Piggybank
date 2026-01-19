@@ -7,19 +7,19 @@ const usuario = ref('')
 const senha = ref('')
 
 function fazerLogin() {
-  // 1. Verifica Usuário
+  // Verifica Usuário
   if (!usuario.value) {
     alert("Por favor, digite um usuário!")
     return
   }
 
-  // 2. Verifica Senha (NOVO)
+  // Verifica Senha
   if (!senha.value) {
     alert("Por favor, digite a senha!")
     return
   }
 
-  // 3. Sucesso
+  // Sucesso
   localStorage.setItem("userName", usuario.value)
   alert("Login realizado com sucesso! Bem-vindo, " + usuario.value)
   router.push('/dashboard')
@@ -59,7 +59,6 @@ function fazerLogin() {
 </template>
 
 <style scoped>
-  /* --- AQUI ESTAVA O PROBLEMA: TROCAMOS 'body' POR '.login-page' --- */
 .login-page 
 {
     font-family: Arial, sans-serif;
@@ -68,7 +67,7 @@ function fazerLogin() {
     align-items: center;
     height: 100vh;
     margin: 0;
-    background-color: #68473d; /* Aquele marrom */
+    background-color: #68473d;
     width: 100%;
 }
 
