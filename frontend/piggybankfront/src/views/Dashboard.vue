@@ -14,7 +14,7 @@ const dataAtual = ref(new Date())
 
 // Modais
 const modalAberto = ref(false) // Modal de Nova Transação
-const modalGraficoAberto = ref(false) // Modal do Gráfico (NOVO)
+const modalGraficoAberto = ref(false) // Modal do Gráfico
 
 const tipoPersonalizadoVisivel = ref(false)
 const form = ref({
@@ -26,9 +26,17 @@ const form = ref({
 // Filtros
 const filtroAtivo = ref('tudo')
 
-// Gráfico
+// --- ESTADO DO GRÁFICO (NOVO) ---
 const graficoCanvas = ref(null)
 let graficoInstance = null
+const modoGrafico = ref('pizza') // 'pizza' ou 'linha'
+const anoSelecionado = ref(new Date().getFullYear())
+
+// Gera os últimos 3 anos para o select
+const anosDisponiveis = computed(() => {
+  const anoAtual = new Date().getFullYear()
+  return [anoAtual, anoAtual - 1, anoAtual - 2]
+})
 
 // --- COMPUTADOS ---
 const nomeMesAno = computed(() => {
@@ -86,8 +94,6 @@ async function carregarTransacoes() {
     }
 
     calcularSaldo()
-    // Nota: Não desenhamos o gráfico aqui automaticamente mais,
-    // pois o canvas pode estar escondido (modal fechado).
 
   } catch (error) {
     console.error("Erro API:", error)
@@ -146,25 +152,34 @@ async function excluir(id) {
   }
 }
 
-// --- LÓGICA DO GRÁFICO (Alterada) ---
+// --- LÓGICA DO GRÁFICO (Alterada/Expandida) ---
+
 async function abrirGrafico() {
     modalGraficoAberto.value = true;
-    // nextTick espera o Vue renderizar o HTML do modal para o <canvas> existir
     await nextTick();
-    desenharGrafico();
+    atualizarGrafico(); // Função centralizadora
 }
 
-function desenharGrafico() {
+async function atualizarGrafico() {
   if (!graficoCanvas.value) return
+  
+  // Limpa gráfico anterior
+  if (graficoInstance) {
+    graficoInstance.destroy()
+    graficoInstance = null
+  }
 
+  if (modoGrafico.value === 'pizza') {
+    desenharGraficoPizza()
+  } else {
+    await desenharGraficoLinha()
+  }
+}
+
+function desenharGraficoPizza() {
   const lista = listaGlobalTransacoes.value
   const entradas = lista.filter(t => t.valor > 0).reduce((acc, t) => acc + t.valor, 0)
   const saidas = lista.filter(t => t.valor < 0).reduce((acc, t) => acc + (t.valor * -1), 0)
-
-  if (graficoInstance) graficoInstance.destroy()
-
-  // Se não tiver dados, podemos desenhar um gráfico vazio ou retornar
-  // Vou deixar desenhar para mostrar zerado
 
   graficoInstance = new Chart(graficoCanvas.value, {
     type: 'doughnut',
@@ -181,6 +196,76 @@ function desenharGrafico() {
       responsive: true,
       maintainAspectRatio: false,
       plugins: { legend: { position: 'bottom' } }
+    }
+  })
+}
+
+// Função auxiliar para pegar dados do ano todo (loopando a API existente)
+async function buscarDadosDoAno(ano) {
+  const promises = []
+  // Busca os 12 meses em paralelo
+  for(let i=1; i<=12; i++) {
+     promises.push(fetch(`${API_URL}/transactions/by_date/${i}/${ano}`).then(r => r.ok ? r.json() : []))
+  }
+  const resultados = await Promise.all(promises)
+  
+  // Junta tudo num array só
+  let todasTransacoes = []
+  resultados.forEach(listaMes => todasTransacoes.push(...listaMes))
+  return todasTransacoes
+}
+
+async function desenharGraficoLinha() {
+  // 1. Busca dados
+  const dadosAno = await buscarDadosDoAno(anoSelecionado.value)
+  
+  // 2. Prepara Arrays (12 meses)
+  const meses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
+  const valoresEntrada = new Array(12).fill(0)
+  const valoresSaida = new Array(12).fill(0)
+
+  // 3. Processa
+  dadosAno.forEach(t => {
+    // Tenta ler a data da transação
+    const dataT = new Date(t.data)
+    if (!isNaN(dataT)) {
+        const mesIndex = dataT.getMonth() // 0 a 11
+        if (t.valor > 0) {
+            valoresEntrada[mesIndex] += t.valor
+        } else {
+            valoresSaida[mesIndex] += (t.valor * -1)
+        }
+    }
+  })
+
+  // 4. Desenha Linha
+  graficoInstance = new Chart(graficoCanvas.value, {
+    type: 'line',
+    data: {
+      labels: meses,
+      datasets: [
+        {
+          label: 'Entradas',
+          data: valoresEntrada,
+          borderColor: '#10b981',
+          backgroundColor: '#10b981',
+          tension: 0.3
+        },
+        {
+          label: 'Saídas',
+          data: valoresSaida,
+          borderColor: '#ef4444',
+          backgroundColor: '#ef4444',
+          tension: 0.3
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        y: { beginAtZero: true }
+      }
     }
   })
 }
@@ -290,8 +375,30 @@ const formatarData = (dataStr) => new Date(dataStr).toLocaleDateString('pt-BR', 
     <div id="modal-overlay" v-if="modalGraficoAberto" @click.self="modalGraficoAberto = false">
         <div class="modal-box modal-grafico-box">
             <div class="modal-header">
-                <h2>Resumo Mensal</h2>
+                <h2>Estatísticas</h2>
                 <button class="btn-fechar-x" @click="modalGraficoAberto = false">✕</button>
+            </div>
+
+            <div class="grafico-controles">
+                <div class="toggle-group">
+                    <button 
+                        :class="{ ativo: modoGrafico === 'pizza' }" 
+                        @click="modoGrafico = 'pizza'; atualizarGrafico()"
+                    >Pizza (Mês)</button>
+                    <button 
+                        :class="{ ativo: modoGrafico === 'linha' }" 
+                        @click="modoGrafico = 'linha'; atualizarGrafico()"
+                    >Linha (Ano)</button>
+                </div>
+
+                <select 
+                    v-if="modoGrafico === 'linha'" 
+                    v-model="anoSelecionado" 
+                    @change="atualizarGrafico"
+                    class="select-ano"
+                >
+                    <option v-for="ano in anosDisponiveis" :key="ano" :value="ano">{{ ano }}</option>
+                </select>
             </div>
 
             <div class="grafico-container-modal">
@@ -304,7 +411,6 @@ const formatarData = (dataStr) => new Date(dataStr).toLocaleDateString('pt-BR', 
 </template>
 
 <style scoped>
-/* (MANTIVE SEU CSS ANTIGO E ADICIONEI OS NOVOS ABAIXO) */
 
 .dashboard-body {
     background-color: #11034b86;
@@ -507,6 +613,48 @@ header {
     position: relative;
     height: 300px;
     width: 100%;
+}
+
+/* --- ESTILOS NOVOS DOS CONTROLES DO GRÁFICO --- */
+.grafico-controles {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    background-color: #f5f5f5;
+    padding: 5px;
+    border-radius: 10px;
+}
+
+.toggle-group {
+    display: flex;
+    gap: 5px;
+}
+
+.toggle-group button {
+    border: none;
+    background: transparent;
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    color: #666;
+    transition: 0.2s;
+}
+
+.toggle-group button.ativo {
+    background-color: white;
+    color: #ff85d8;
+    font-weight: bold;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.select-ano {
+    padding: 5px 10px;
+    border-radius: 6px;
+    border: 1px solid #ddd;
+    background: white;
+    cursor: pointer;
 }
 
 .campo { margin-bottom: 15px; display: flex; flex-direction: column; }
