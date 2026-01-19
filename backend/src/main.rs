@@ -7,6 +7,7 @@ use piggy_bank;
 use sqlx::SqlitePool;
 use sqlx::migrate::MigrateDatabase;
 use sqlx::sqlite::SqliteConnectOptions;
+
 use tower_http::cors::{AllowOrigin, Any, CorsLayer};
 use tower_http::services::{ServeDir, ServeFile};
 #[tokio::main]
@@ -67,7 +68,26 @@ async fn main() {
         .with_state(pool);
     let addr = "0.0.0.0:46000";
     let adress = addr.strip_prefix("0.0.0.0:").unwrap();
-    let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
-    println!("server is listening in address : http://127.0.0.1:{adress}/");
-    axum::serve(listener, app).await.unwrap();
+    let _child1 = tokio::spawn(async move {
+        let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
+        println!("Server is listening in address : http://127.0.0.1:{adress}/");
+
+        axum::serve(listener, app.into_make_service())
+            .await
+            .unwrap()
+    });
+    use std::process::Command;
+
+    println!("Opening browser 🌐");
+
+    // Tenta webbrowser primeiro
+    if let Err(_) = webbrowser::open(format!("http://127.0.0.1:46000/").as_str()) {
+        // Fallback xdg-open (KDE)
+        Command::new("xdg-open")
+            .arg("http://127.0.0.1:46000/")
+            .spawn()
+            .unwrap();
+    }
+
+    tokio::signal::ctrl_c().await.unwrap();
 }
