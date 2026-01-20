@@ -20,7 +20,7 @@ const tipoPersonalizadoVisivel = ref(false)
 // campo 'naturezaCustom' (padrão é saida)
 const form = ref({
   valor: '',
-  tipo: 'entrada',
+  tipo: 'lazer',
   customTipo: '',
   naturezaCustom: 'saida' 
 })
@@ -220,36 +220,38 @@ function desenharGraficoPizza() {
   let labels = []
   let data = []
   let colors = []
+  let tituloGrafico = '' // Variável para controlar o título
 
   // CASO 1: Visão Geral (Tudo, Entradas ou Saídas)
-  // Aqui continua mostrando o balanço geral
   if (['tudo', 'entradas', 'saídas'].includes(filtro)) {
       const entradas = lista.filter(t => t.valor > 0).reduce((acc, t) => acc + t.valor, 0)
       const saidas = lista.filter(t => t.valor < 0).reduce((acc, t) => acc + (t.valor * -1), 0)
       
       labels = ['Total Entradas', 'Total Saídas']
       data = [entradas, saidas]
-      colors = ['#10b981', '#ef4444'] // Verde e Vermelho
+      colors = ['#10b981', '#ef4444']
+      
+      // AQUI O AJUSTE: Mesmo que o filtro seja 'entradas', o gráfico mostra TUDO.
+      tituloGrafico = 'VISÃO GERAL (TUDO)' 
   } 
-  // CASO 2: Visão da PASTA ESPECÍFICA (Ex: Farmácia)
-  // Agora compara Entradas DA PASTA vs Saídas DA PASTA
+  // CASO 2: Visão da PASTA ESPECÍFICA
   else {
-      // Filtra apenas itens dessa pasta
       const itensDaPasta = lista.filter(t => t.tipo === filtro)
 
-      // Soma o que entrou nessa pasta (Reembolsos, Ganhos específicos)
       const entradasPasta = itensDaPasta
           .filter(t => t.valor > 0)
           .reduce((acc, t) => acc + t.valor, 0)
 
-      // Soma o que saiu dessa pasta
       const saidasPasta = itensDaPasta
           .filter(t => t.valor < 0)
           .reduce((acc, t) => acc + (t.valor * -1), 0)
 
       labels = [`Entradas (${filtro})`, `Saídas (${filtro})`]
       data = [entradasPasta, saidasPasta]
-      colors = ['#10b981', '#ef4444'] // Mantém Verde e Vermelho para consistência
+      colors = ['#10b981', '#ef4444']
+      
+      // Aqui mantém o nome da pasta (ex: LAZER, FARMACIA)
+      tituloGrafico = filtro.toUpperCase()
   }
 
   graficoInstance = new Chart(graficoCanvas.value, {
@@ -270,7 +272,7 @@ function desenharGraficoPizza() {
           legend: { position: 'bottom' },
           title: { 
             display: true, 
-            text: filtro.toUpperCase(),
+            text: tituloGrafico, // Usa a variável que definimos acima
             font: { size: 16 }
           }
       }
@@ -298,17 +300,23 @@ async function desenharGraficoLinha() {
   const filtro = filtroAtivo.value
   
   const meses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
-  
-  // Prepara os arrays (Entrada e Saída)
   const valoresEntrada = new Array(12).fill(0)
   const valoresSaida = new Array(12).fill(0)
 
-  // Verifica se é um filtro geral (Tudo/Entradas/Saídas) ou uma Categoria específica
+  // Define se é filtro geral ou categoria específica
   const ehFiltroGeral = ['tudo', 'entradas', 'saídas'].includes(filtro)
+  
+  //  Define o Título correto
+  let tituloGrafico = ''
+  if (ehFiltroGeral) {
+      tituloGrafico = 'VISÃO GERAL (TUDO)'
+  } else {
+      tituloGrafico = `Evolução: ${filtro.toUpperCase()}`
+  }
 
   // Processa os dados
   dadosAno.forEach(t => {
-    // Se for Geral, aceita tudo. Se for Categoria, só aceita se o tipo for igual.
+    // Se for Geral, pega tudo. Se for Pasta, só pega se o tipo bater.
     if (ehFiltroGeral || t.tipo === filtro) {
         
         const dataT = new Date(t.data)
@@ -318,25 +326,25 @@ async function desenharGraficoLinha() {
             if (t.valor > 0) {
                 valoresEntrada[mesIndex] += t.valor
             } else {
-                valoresSaida[mesIndex] += (t.valor * -1) // Transforma negativo em positivo pro gráfico
+                valoresSaida[mesIndex] += (t.valor * -1)
             }
         }
     }
   })
 
-  // Agora sempre teremos 2 linhas, seja para "Tudo" ou para "Farmácia"
+  // Monta as duas linhas (Sempre Verde e Vermelho)
   const datasets = [
     { 
         label: 'Entradas', 
         data: valoresEntrada, 
-        borderColor: '#10b981', // Verde
+        borderColor: '#10b981', 
         backgroundColor: '#10b981', 
         tension: 0.3 
     },
     { 
         label: 'Saídas', 
         data: valoresSaida, 
-        borderColor: '#ef4444', // Vermelho
+        borderColor: '#ef4444', 
         backgroundColor: '#ef4444', 
         tension: 0.3 
     }
@@ -352,7 +360,8 @@ async function desenharGraficoLinha() {
       plugins: { 
           title: { 
               display: true, 
-              text: `Evolução Anual: ${filtro.toUpperCase()}` 
+              text: tituloGrafico, // <--- Título corrigido aqui
+              font: { size: 16 }
           } 
       }
     }
@@ -471,10 +480,8 @@ const formatarData = (dataStr) => new Date(dataStr).toLocaleDateString('pt-BR', 
                 <div class="campo">
                   <label>Tipo</label>
                   <select v-model="form.tipo" @change="verificarTipoCustom" required>
-                      <option value="entrada">🟢 Entrada (Salário/Fixa)</option>
                       <option value="lazer">🔴 Lazer</option>
                       <option value="supermercado">🔴 Supermercado</option>
-                      <option value="saida">🔴 Outra Saída</option>
                       <option value="outro">✨ Personalizado...</option>
                   </select>
                   
