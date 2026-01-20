@@ -17,10 +17,12 @@ const modalAberto = ref(false) // Modal de Nova Transação
 const modalGraficoAberto = ref(false) // Modal do Gráfico
 
 const tipoPersonalizadoVisivel = ref(false)
+// campo 'naturezaCustom' (padrão é saida)
 const form = ref({
   valor: '',
   tipo: 'entrada',
-  customTipo: ''
+  customTipo: '',
+  naturezaCustom: 'saida' 
 })
 
 // Filtros
@@ -47,19 +49,39 @@ const saldoFormatado = computed(() => {
   return saldoTotal.value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 })
 
-// A última transação sempre será a primeira na lista
+// Lógica das "Pastas" (Categorias)
+
+// Descobre quais categorias existem na lista atual (ex: 'lazer', 'mercado')
+const categoriasDisponiveis = computed(() => {
+  const todas = listaGlobalTransacoes.value.map(t => t.tipo)
+  return [...new Set(todas)] // O Set remove nomes repetidos
+})
+
+// Filtra a lista baseada no botão clicado
 const transacoesFiltradas = computed(() => {
   let lista = listaGlobalTransacoes.value
+  const filtro = filtroAtivo.value
 
-  if (filtroAtivo.value === 'entradas') {
+  // Lógica de Filtragem Atualizada
+  if (filtro === 'tudo') {
+    // Não faz nada, mostra a lista inteira
+  } else if (filtro === 'entradas') {
     lista = lista.filter(t => t.valor > 0)
-  } else if (filtroAtivo.value === 'saídas') {
+  } else if (filtro === 'saídas') {
     lista = lista.filter(t => t.valor < 0)
+  } else {
+    // SE NÃO FOR entrada/saida/tudo, ENTÃO É UMA CATEGORIA (PASTA)
+    lista = lista.filter(t => t.tipo === filtro)
   }
 
-  // Transforma texto em data e ordena da mais nova pra mais velha
+  // Mantém a ordenação por data (mais recente primeiro)
   return [...lista].sort((a, b) => new Date(b.data) - new Date(a.data))
 })
+
+// Função para o HTML usar quando clicar no botão
+function definirFiltro(novoFiltro) {""
+  filtroAtivo.value = novoFiltro
+}
 
 // MÉTODOS
 onMounted(() => {
@@ -105,15 +127,29 @@ function calcularSaldo() {
   saldoTotal.value = listaGlobalTransacoes.value.reduce((acc, item) => acc + item.valor, 0)
 }
 
+// FUNÇÃO SALVAR 
 async function salvarTransacao() {
   let tipoFinal = form.value.tipo
-  if (tipoFinal === 'outro') {
+  
+  // Define se é Saída ou Entrada
+  let ehDespesa = true // Assume que é despesa por padrão
+
+  if (tipoFinal === 'entrada') {
+    ehDespesa = false // Se for a opção padrão "Entrada", não é despesa
+  } else if (tipoFinal === 'outro') {
+    // Se for Personalizado, pega o nome digitado E a escolha do usuário
     tipoFinal = form.value.customTipo.trim()
-    if (!tipoFinal) return alert("Digite o tipo personalizado!")
+    if (!tipoFinal) return alert("Digite o nome da categoria!")
+    
+    // Verifica o Radio Button (Se marcou Entrada, não é despesa)
+    if (form.value.naturezaCustom === 'entrada') {
+        ehDespesa = false
+    }
   }
 
-  let valorFinal = parseFloat(form.value.valor)
-  if (tipoFinal.toLowerCase() !== 'entrada') {
+  // Prepara o valor (Negativo se for despesa, Positivo se for entrada)
+  let valorFinal = Math.abs(parseFloat(form.value.valor))
+  if (ehDespesa) {
     valorFinal = valorFinal * -1
   }
 
@@ -128,10 +164,13 @@ async function salvarTransacao() {
 
     if (res.ok) {
       modalAberto.value = false
+      // Limpa o formulário
       form.value.valor = ''
       form.value.tipo = 'entrada'
       form.value.customTipo = ''
+      form.value.naturezaCustom = 'saida' // Reseta para saida
       tipoPersonalizadoVisivel.value = false
+      
       carregarTransacoes()
     } else {
       alert("Erro ao salvar")
@@ -175,17 +214,51 @@ async function atualizarGrafico() {
 }
 
 function desenharGraficoPizza() {
-  const lista = listaGlobalTransacoes.value
-  const entradas = lista.filter(t => t.valor > 0).reduce((acc, t) => acc + t.valor, 0)
-  const saidas = lista.filter(t => t.valor < 0).reduce((acc, t) => acc + (t.valor * -1), 0)
+  const lista = listaGlobalTransacoes.value 
+  const filtro = filtroAtivo.value
+
+  let labels = []
+  let data = []
+  let colors = []
+
+  // CASO 1: Visão Geral (Tudo, Entradas ou Saídas)
+  // Aqui continua mostrando o balanço geral
+  if (['tudo', 'entradas', 'saídas'].includes(filtro)) {
+      const entradas = lista.filter(t => t.valor > 0).reduce((acc, t) => acc + t.valor, 0)
+      const saidas = lista.filter(t => t.valor < 0).reduce((acc, t) => acc + (t.valor * -1), 0)
+      
+      labels = ['Total Entradas', 'Total Saídas']
+      data = [entradas, saidas]
+      colors = ['#10b981', '#ef4444'] // Verde e Vermelho
+  } 
+  // CASO 2: Visão da PASTA ESPECÍFICA (Ex: Farmácia)
+  // Agora compara Entradas DA PASTA vs Saídas DA PASTA
+  else {
+      // Filtra apenas itens dessa pasta
+      const itensDaPasta = lista.filter(t => t.tipo === filtro)
+
+      // Soma o que entrou nessa pasta (Reembolsos, Ganhos específicos)
+      const entradasPasta = itensDaPasta
+          .filter(t => t.valor > 0)
+          .reduce((acc, t) => acc + t.valor, 0)
+
+      // Soma o que saiu dessa pasta
+      const saidasPasta = itensDaPasta
+          .filter(t => t.valor < 0)
+          .reduce((acc, t) => acc + (t.valor * -1), 0)
+
+      labels = [`Entradas (${filtro})`, `Saídas (${filtro})`]
+      data = [entradasPasta, saidasPasta]
+      colors = ['#10b981', '#ef4444'] // Mantém Verde e Vermelho para consistência
+  }
 
   graficoInstance = new Chart(graficoCanvas.value, {
     type: 'doughnut',
     data: {
-      labels: ['Entradas', 'Saídas'],
+      labels: labels,
       datasets: [{
-        data: [entradas, saidas],
-        backgroundColor: ['#10b981', '#ef4444'],
+        data: data,
+        backgroundColor: colors,
         borderWidth: 0,
         hoverOffset: 4
       }]
@@ -193,7 +266,14 @@ function desenharGraficoPizza() {
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      plugins: { legend: { position: 'bottom' } }
+      plugins: { 
+          legend: { position: 'bottom' },
+          title: { 
+            display: true, 
+            text: filtro.toUpperCase(),
+            font: { size: 16 }
+          }
+      }
     }
   })
 }
@@ -214,55 +294,66 @@ async function buscarDadosDoAno(ano) {
 }
 
 async function desenharGraficoLinha() {
-  // Busca dados
   const dadosAno = await buscarDadosDoAno(anoSelecionado.value)
+  const filtro = filtroAtivo.value
   
-  // Prepara Arrays (12 meses)
   const meses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
+  
+  // Prepara os arrays (Entrada e Saída)
   const valoresEntrada = new Array(12).fill(0)
   const valoresSaida = new Array(12).fill(0)
 
-  // Processando isso
+  // Verifica se é um filtro geral (Tudo/Entradas/Saídas) ou uma Categoria específica
+  const ehFiltroGeral = ['tudo', 'entradas', 'saídas'].includes(filtro)
+
+  // Processa os dados
   dadosAno.forEach(t => {
-    // Tenta ler a data da transação
-    const dataT = new Date(t.data)
-    if (!isNaN(dataT)) {
-        const mesIndex = dataT.getMonth() // 0 a 11
-        if (t.valor > 0) {
-            valoresEntrada[mesIndex] += t.valor
-        } else {
-            valoresSaida[mesIndex] += (t.valor * -1)
+    // Se for Geral, aceita tudo. Se for Categoria, só aceita se o tipo for igual.
+    if (ehFiltroGeral || t.tipo === filtro) {
+        
+        const dataT = new Date(t.data)
+        if (!isNaN(dataT)) {
+            const mesIndex = dataT.getMonth() // 0 a 11
+            
+            if (t.valor > 0) {
+                valoresEntrada[mesIndex] += t.valor
+            } else {
+                valoresSaida[mesIndex] += (t.valor * -1) // Transforma negativo em positivo pro gráfico
+            }
         }
     }
   })
 
-  // Desenha Linha
+  // Agora sempre teremos 2 linhas, seja para "Tudo" ou para "Farmácia"
+  const datasets = [
+    { 
+        label: 'Entradas', 
+        data: valoresEntrada, 
+        borderColor: '#10b981', // Verde
+        backgroundColor: '#10b981', 
+        tension: 0.3 
+    },
+    { 
+        label: 'Saídas', 
+        data: valoresSaida, 
+        borderColor: '#ef4444', // Vermelho
+        backgroundColor: '#ef4444', 
+        tension: 0.3 
+    }
+  ]
+
   graficoInstance = new Chart(graficoCanvas.value, {
     type: 'line',
-    data: {
-      labels: meses,
-      datasets: [
-        {
-          label: 'Entradas',
-          data: valoresEntrada,
-          borderColor: '#10b981',
-          backgroundColor: '#10b981',
-          tension: 0.3
-        },
-        {
-          label: 'Saídas',
-          data: valoresSaida,
-          borderColor: '#ef4444',
-          backgroundColor: '#ef4444',
-          tension: 0.3
-        }
-      ]
-    },
+    data: { labels: meses, datasets: datasets },
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      scales: {
-        y: { beginAtZero: true }
+      scales: { y: { beginAtZero: true } },
+      plugins: { 
+          title: { 
+              display: true, 
+              text: `Evolução Anual: ${filtro.toUpperCase()}` 
+          } 
       }
     }
   })
@@ -314,11 +405,37 @@ const formatarData = (dataStr) => new Date(dataStr).toLocaleDateString('pt-BR', 
             <button id="btn-nova-transacao" @click="modalAberto = true">+ NOVA</button>
         </div>
 
-        <div class="filtros">
-            <button class="filtro-btn" :class="{ ativo: filtroAtivo === 'tudo' }" @click="filtroAtivo = 'tudo'">Tudo</button>
-            <button class="filtro-btn" :class="{ ativo: filtroAtivo === 'entradas' }" @click="filtroAtivo = 'entradas'">Entradas</button>
-            <button class="filtro-btn" :class="{ ativo: filtroAtivo === 'saídas' }" @click="filtroAtivo = 'saídas'">Saídas</button>
-        </div>
+        <div class="filtros-scroll">
+          <button 
+              class="filtro-chip" 
+              :class="{ ativo: filtroAtivo === 'tudo' }" 
+              @click="definirFiltro('tudo')">
+              🏠 Tudo
+          </button>
+          <button 
+              class="filtro-chip" 
+              :class="{ ativo: filtroAtivo === 'entradas' }" 
+              @click="definirFiltro('entradas')">
+              ⬇ Entradas
+          </button>
+          <button 
+              class="filtro-chip" 
+              :class="{ ativo: filtroAtivo === 'saídas' }" 
+              @click="definirFiltro('saídas')">
+              ⬆ Saídas
+          </button>
+          
+          <div class="divisor-vertical"></div>
+
+          <button 
+              v-for="cat in categoriasDisponiveis" 
+              :key="cat"
+              class="filtro-chip capitalize" 
+              :class="{ ativo: filtroAtivo === cat }" 
+              @click="definirFiltro(cat)">
+              {{ cat }}
+          </button>
+      </div>
 
         <ul id="lista-transacoes">
             <li v-for="item in transacoesFiltradas" :key="item.id" class="item-transacao">
@@ -352,15 +469,29 @@ const formatarData = (dataStr) => new Date(dataStr).toLocaleDateString('pt-BR', 
                     <input type="number" step="0.01" required v-model="form.valor" placeholder="0,00">
                 </div>
                 <div class="campo">
-                    <label>Tipo</label>
-                    <select v-model="form.tipo" @change="verificarTipoCustom" required>
-                        <option value="entrada">🟢 Entrada (Ganho)</option>
-                        <option value="lazer">🔴 Lazer</option>
-                        <option value="supermercado">🔴 Supermercado</option>
-                        <option value="saida">🔴 Outra Saída</option>
-                        <option value="outro">✨ Personalizado...</option>
-                    </select>
-                    <input v-if="tipoPersonalizadoVisivel" type="text" v-model="form.customTipo" placeholder="Digite o nome..." style="margin-top: 10px;">
+                  <label>Tipo</label>
+                  <select v-model="form.tipo" @change="verificarTipoCustom" required>
+                      <option value="entrada">🟢 Entrada (Salário/Fixa)</option>
+                      <option value="lazer">🔴 Lazer</option>
+                      <option value="supermercado">🔴 Supermercado</option>
+                      <option value="saida">🔴 Outra Saída</option>
+                      <option value="outro">✨ Personalizado...</option>
+                  </select>
+                  
+                  <div v-if="tipoPersonalizadoVisivel" class="personalizado-wrapper">
+                      <input type="text" v-model="form.customTipo" placeholder="Nome (ex: Freela, Venda de Bolo)..." class="input-custom">
+                      
+                      <div class="opcao-natureza">
+                          <label class="radio-btn">
+                              <input type="radio" value="entrada" v-model="form.naturezaCustom">
+                              <span>💰 Ganho</span>
+                          </label>
+                          <label class="radio-btn">
+                              <input type="radio" value="saida" v-model="form.naturezaCustom">
+                              <span>💸 Gasto</span>
+                          </label>
+                      </div>
+                  </div>
                 </div>
                 <div class="botoes-modal">
                     <button type="button" id="btn-cancelar" @click="modalAberto = false">Cancelar</button>
@@ -660,4 +791,94 @@ header {
 .botoes-modal { display: flex; gap: 10px; margin-top: 20px; }
 #btn-salvar { flex: 1; background-color: #FFAAEA; color: white; border: none; padding: 12px; border-radius: 8px; font-weight: bold; cursor: pointer; }
 #btn-cancelar { flex: 1; background-color: transparent; border: 1px solid #ccc; color: #666; padding: 12px; border-radius: 8px; cursor: pointer; }
+
+/*BARRA DE FILTROS/PASTAS*/
+
+.filtros-scroll {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    overflow-x: auto; /* Permite rolar para o lado se tiver muitas categorias */
+    padding-bottom: 5px; /* Espaço para a barra de rolagem não colar */
+    white-space: nowrap; /* Impede que os botões quebrem linha */
+    
+    /* Esconde a barra de rolagem feia (Opcional) */
+    scrollbar-width: thin; 
+    -ms-overflow-style: none; 
+}
+.filtros-scroll::-webkit-scrollbar {
+    height: 4px; /* Barra bem fininha */
+}
+.filtros-scroll::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.3);
+    border-radius: 4px;
+}
+
+.filtro-chip {
+    background-color: white;
+    border: 1px solid #eee;
+    padding: 8px 16px;
+    border-radius: 20px;
+    cursor: pointer;
+    color: #666;
+    font-size: 14px;
+    transition: 0.2s;
+    flex-shrink: 0; /* Garante que o botão não seja esmagado */
+}
+
+.filtro-chip:hover {
+    background-color: #f0f0f0;
+}
+
+.filtro-chip.ativo {
+    background-color: #FFAAEA;
+    color: white;
+    border-color: #FFAAEA;
+    font-weight: bold;
+    box-shadow: 0 4px 6px rgba(255, 105, 180, 0.2);
+}
+
+.divisor-vertical {
+    width: 1px;
+    background-color: rgba(255,255,255,0.5);
+    margin: 0 5px;
+}
+
+.capitalize {
+    text-transform: capitalize; /* Deixa a primeira letra maiúscula (lazer -> Lazer) */
+}
+.personalizado-wrapper {
+    margin-top: 10px;
+    background-color: #f9f9f9;
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid #eee;
+}
+
+.input-custom {
+    width: 100%;
+    margin-bottom: 10px;
+    box-sizing: border-box; /* Garante que não estoure a largura */
+}
+
+.opcao-natureza {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+}
+
+.radio-btn {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 14px;
+}
+
+.radio-btn input {
+    accent-color: #ff85d8; /* Cor da bolinha quando marcada */
+    width: 18px;
+    height: 18px;
+}
 </style>
