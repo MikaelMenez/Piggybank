@@ -1,104 +1,123 @@
-Piggybank API
+PiggyBank 🐷💰
 
-API HTTP construída com Rust + Axum + SQLite para gerenciamento completo de transações financeiras. Valores são armazenados em centavos no banco (1099 = R$ 10,99) e expostos em reais nas respostas JSON.
-📋 Tabela transactions
-Campo	Tipo	Descrição
-id	INTEGER PRIMARY KEY AUTOINCREMENT	ID único gerado automaticamente
-tipo	TEXT NOT NULL	Tipo da transação (entrada, lazer, saida, supermercado...)
-valor	INTEGER NOT NULL	Valor em centavos (1099 = R$ 10,99)
-data	TEXT NOT NULL	Data/hora (YYYY-MM-DD HH:MM:SS via datetime('now'))
-🏗️ Structs
+Seu Gestor Financeiro Pessoal - Fácil e Grátis!
 
-    CreateTransaction (input JSON): tipo: String, valor: f64
-
-    Transaction (banco): id, tipo, data, valor: i64
-
-    Transactionjson (resposta JSON): id, tipo, data, valor: f64
-
-🚀 Rotas da API
-POST /add_transaction
-
-Cria nova transação. Data automática.
-
-bash
-curl -X POST http://localhost:3000/add_transaction \
-  -H "Content-Type: application/json" \
-  -d '{"tipo": "lazer", "valor": -23.57}'
-
-Status: 201 Created
-GET /transactions
-
-Lista todas transações.
-
-bash
-curl http://localhost:3000/transactions
-
-GET /transactions/by_tipo/{tipo}
-
-Filtra por tipo ("lazer", "entrada").
-
-bash
-curl http://localhost:3000/transactions/by_tipo/lazer
-
-GET /transactions/by_date/{mes}/{ano}
-
-Filtra por mês/ano (/by_date/1/2026 → "2026-01").
-
-bash
-curl http://localhost:3000/transactions/by_date/1/2026
-
-PUT /modify_transaction/{id}
-
-Atualiza transação por ID.
-
-bash
-curl -X PUT http://localhost:3000/modify_transaction/1 \
-  -H "Content-Type: application/json" \
-  -d '{"tipo": "entrada", "valor": 150.00}'
-
-DELETE /delete_transaction/{id}
-
-Remove transação por ID.
-
-bash
-curl -X DELETE http://localhost:3000/delete_transaction/1
-
-GET /
-
-Health check.
-
-bash
-curl http://localhost:3000/
-
-Resposta: "hello world"
-📊 Status Codes
-Código	Descrição
-200 OK	Sucesso (GET)
-201 Created	Sucesso (POST/PUT/DELETE)
-422 Unprocessable Entity	JSON inválido
-500 Internal Server Error	Erro no banco
-🌐 Endereço
+PiggyBank é um aplicativo simples para controlar suas finanças no computador. Funciona como bloco de notas, mas para dinheiro: anota entradas, saídas, vê gráficos, filtra por mês. 100% grátis, local e privado.
+🎯 Para que serve?
 
 text
-http://127.0.0.1:3000/
+✅ Anotar gastos e receitas
+✅ 📈 GRÁFICOS de gastos/tempo
+✅ Filtrar por "lazer", "salário", "aluguel"
+✅ Ver por mês/ano específico
+✅ Editar ou apagar registros
+✅ Funciona sem internet
+✅ Linux + Windows
 
-🧪 Dados de Teste
+👨‍💻 Como usar (5 minutos - Qualquer pessoa!)
+1. Baixe o programa
 
-sql
-INSERT INTO transactions (tipo, valor, data) VALUES 
-('entrada', 15000, '2026-01-08 12:00:00'),
-('lazer', -2357, '2026-01-08 14:30:00'),
-('saida', -8000, '2025-12-15 10:30:00');
+text
+🔽 Clique "Releases" no GitHub
+🔽 Baixe piggy_bank_linux.zip OU piggy_bank_windows.zip
+🔽 Clique 2x para descompactar
 
-📋 Exemplo de Resposta JSON
+2. Abra o programa
 
-json
-[
-  {
-    "id": 1,
-    "tipo": "entrada",
-    "valor": 150.00,
-    "data": "2026-01-08 12:00:00"
-  }
-]
+text
+📁 Entre na pasta descompactada
+🖱️ Clique 2x no arquivo:
+  • Linux:  piggy_bank 
+  • Windows: piggy_bank.exe
 
+3. Use no navegador!
+
+text
+🌐 Navegador abre sozinho em: http://localhost:46000
+✅ Já funciona! Sem instalar nada
+
+🔧 O que acontece?
+
+text
+1️⃣ Programa cria "app.db" (seu banco)
+2️⃣ Abre navegador na tela principal
+3️⃣ Digite: tipo + valor → "Adicionar"
+4️⃣ 📊 Veja gráficos automáticos
+5️⃣ Filtre: "lazer" ou "2026-01"
+6️⃣ Feche navegador → dados salvos!
+
+📱 Como funciona na prática
+
+text
+Digite ➜ "salário" + 5000 ➜ Salva + Gráfico atualiza
+Digite ➜ "aluguel" + 1200 ➜ Salva + Gráfico atualiza  
+Clique ➜ "lazer" ➜ Gráfico só lazer
+Clique ➜ "01/2026" ➜ Gráfico janeiro
+
+Exemplo tela:
+
+text
+📊 GRÁFICO: Salário R$5k | Aluguel R$1.2k | Lazer R$150
+ID | TIPO     | VALOR    | DATA
+1  | salário  | R$5.000  | 2026-01-20
+2  | aluguel  | R$1.200  | 2026-01-20  
+3  | lazer    | R$150    | 2026-01-20
+
+💾 Onde ficam seus dados?
+
+text
+📁 Na mesma pasta do programa:
+├── app.db          ← Suas finanças
+├── dist/           ← Interface + Gráficos
+└── piggy_bank.exe  ← Programa
+
+Copie a pasta toda = backup completo!
+🛡️ Seguro e simples
+
+text
+✅ Sem internet = 100% privado
+✅ Sem cadastro = sem spam
+✅ SQLite = banco confiável
+✅ Gráficos em tempo real
+✅ MIT License = use à vontade
+
+🤝 Ajude a melhorar!
+
+text
+⭐ Clique "Star" se gostou
+🐛 Reporte bugs (Issues)
+🔄 Sugira ideias novas
+👨‍💻 Frontend simples (HTML/CSS/JS)
+
+Próximas melhorias:
+
+text
+✅ 📈 Gráficos funcionando!
+🔄 [ ] Exportar Excel/PDF
+🔄 [ ] Categorias customizáveis
+🔄 [ ] Backup criptografado
+🔄 [ ] Versão celular
+
+📞 Dúvidas?
+
+text
+❓ Não abre? Reinstale
+❓ Gráficos não aparecem? Recarregue página
+❓ Dados sumiram? app.db está lá?
+❓ Lento? Fecha outros programas
+
+🎉 Por que escolher PiggyBank?
+
+text
+👴 Vovô usa (simples)
+💻 Programador usa (Rust + Gráficos)
+👩 Empresária usa (visual rápido)
+🆓 Todos usam (grátis)
+
+🐷 PiggyBank: Veja suas finanças em gráficos! 📊💰
+
+© 2026 Mikael Menezes e Kaio Marinho - João Pessoa/PB
+MIT License - Copie, use, melhore!
+
+
+Clique Releases → Baixe → Use hoje! 🚀
